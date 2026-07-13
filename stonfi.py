@@ -130,7 +130,61 @@ async def get_all_pair_prices(
         log.exception("[error] stonfi.get_all_pair_prices: %s", e)
         return {}
 
-    all_prices = _extract_prices(data)
     # Filter down to pools where the base token is one of the two sides.
+    # We want prices for the OTHER token in the pair (the jetton vs base).
+    all_prices = _extract_prices(data)
     base = base_token.upper()
-    return {sym: px for sym, px in all_prices.items() if base in (sym,)}
+    out: dict[str, float] = {}
+    for sym, px in all_prices.items():
+        # For pools containing base_token, we need to get the price of the non-base token
+        if sym.upper() != base:  # Don't include base token itself
+            out[sym] = px
+    return out
+
+
+# ---------- Route/New Pair helpers ----------
+
+async def get_all_pools(
+    session: aiohttp.ClientSession,
+) -> list[dict[str, Any]]:
+    """
+    Return all pools for the route strategy. Each pool dict contains:
+    - id: pool identifier
+    - token symbols and reserves for price computation
+    Placeholder — implement by parsing the pools endpoint fully.
+    """
+    if session.closed:
+        return []
+    try:
+        async with session.get(
+            POOLS_URL, timeout=aiohttp.ClientTimeout(total=_REQUEST_TIMEOUT)
+        ) as resp:
+            if resp.status != 200:
+                return []
+            data = await resp.json()
+    except Exception:  # noqa: BLE001
+        return []
+
+    pools = data.get("pool_list") or data.get("pools") or []
+    if not isinstance(pools, list):
+        return []
+
+    # Normalize pool data for strategy consumption
+    out = []
+    for pool in pools:
+        if not isinstance(pool, dict):
+            continue
+        out.append(pool)
+    return out
+
+
+async def get_recent_pools(
+    session: aiohttp.ClientSession, since_ts: float
+) -> list[dict[str, Any]]:
+    """
+    Return pools created after the given timestamp. Placeholder returns empty.
+    Used by the new_pair strategy.
+    """
+    # Simple placeholder: STON.fi doesn't expose pool creation time via public API
+    # without additional endpoints. Returns empty for now.
+    return []

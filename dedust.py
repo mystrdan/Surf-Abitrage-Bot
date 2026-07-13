@@ -186,3 +186,51 @@ async def get_all_pair_prices(
             out[other_symbol] = price
 
     return out
+
+
+# ---------- Route/New Pair helpers ----------
+
+async def get_all_pools(
+    session: aiohttp.ClientSession,
+) -> list[dict[str, Any]]:
+    """
+    Return all pools for the route strategy. Each pool dict contains:
+    - assets with metadata (symbols)
+    - reserves for price computation
+    Placeholder — implement by parsing the pools endpoint fully.
+    """
+    if session.closed:
+        return []
+    try:
+        async with session.get(
+            POOLS_URL, timeout=aiohttp.ClientTimeout(total=_REQUEST_TIMEOUT)
+        ) as resp:
+            if resp.status != 200:
+                return []
+            data = await resp.json()
+    except Exception:  # noqa: BLE001
+        return []
+
+    pools = data.get("pools") or data.get("pool_list") or []
+    if not isinstance(pools, list):
+        return []
+
+    # Normalize pool data for strategy consumption
+    out = []
+    for pool in pools:
+        if not isinstance(pool, dict):
+            continue
+        out.append(pool)
+    return out
+
+
+async def get_recent_pools(
+    session: aiohttp.ClientSession, since_ts: float
+) -> list[dict[str, Any]]:
+    """
+    Return pools created after the given timestamp. Placeholder returns empty.
+    Used by the new_pair strategy.
+    """
+    # DeDust doesn't expose pool creation time via public API
+    # without additional endpoints. Returns empty for now.
+    return []
